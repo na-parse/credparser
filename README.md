@@ -2,6 +2,41 @@
 
 `credparser` is intended to provide automation systems with end-point credential requirements the ability to embed credential values in a non-plain-text format.
 
+
+## Quick Start
+
+```python
+from credparser import CredParser
+
+# Create credentials from username/password
+creds = CredParser(username="admin", password="secret123")
+credential_string = creds.credentials
+
+# Load credentials from string
+creds = CredParser(credentials=credential_string)
+print(creds.username)  # "admin"
+print(creds.password)  # "secret123"
+```
+
+## Configuration
+
+**Important**: Change the default master seed before production use.
+
+Edit `credparser/seed.py`:
+
+```python
+MASTER_SEED = "your-secure-master-seed-here"
+```
+
+For production environments, integrate with your secrets management system:
+
+```python
+import os
+from your_secrets_manager import get_secret
+
+MASTER_SEED = os.getenv('CREDPARSER_MASTER_SEED') or get_secret('credparser_seed')
+```
+
 ## The Problem
 
 Secret managers are the way to go.  The `keyring` solution exists as well.  But at the end of the day, my observation has been that for small, quick REST access scripts, everyone seems to be loading plain user/password values from text files, environment variables (which are generally populated from plain text files), or some other clunky solution.
@@ -16,8 +51,7 @@ You:
 - Agree that credentials should never be stored in plain text
 
 `credparser`:
-- Basic hash encryption
-- Fingerprint based on system and user information
+- Basic encryption using sha256 hash based keys
 - Generates a base64 string that can be easily stored in a config file
 - Easy integration into python scripts for loading and decoding
 
@@ -47,3 +81,53 @@ mycreds.load(mycredential_string)
 print(f'username={mycreds.username}, password={mycreds.password}')
 ```
 
+## API Reference
+
+### CredParser Class
+
+#### Constructor
+
+```python
+CredParser(username=None, password=None, credentials=None)
+```
+
+- `username`, `password`: Both must be provided together or both None
+- `credentials`: Pre-encoded credential string
+- Cannot specify both username/password and credentials
+
+#### Properties
+
+- `username`: Returns decoded username (read-only)
+- `password`: Returns decoded password (read-only)
+- `credentials`: The encoded credential string
+
+#### Methods
+
+- `load(credentials)`: Load new credential string post-initialization
+
+## Error Handling
+
+- `UsageError`: Invalid parameter combinations
+- `InvalidCredentialString`: Corrupt/invalid credential data
+- `InvalidDataType`: Non-ASCII string inputs
+- `CryptError`: Cryptographic operation failures
+
+## Security Notes
+
+- Credentials are never stored as plaintext in memory
+- Each credential string uses unique salt generation
+- Two-level key derivation with SHA-256 hashing
+- Master seed must be secured in production environments
+
+## Example Integration
+
+```python
+import credparser
+
+# REST API authentication
+creds = credparser.CredParser(credentials=stored_cred_string)
+response = requests.get(
+    api_url,
+    auth=(creds.username, creds.password)
+)
+```
