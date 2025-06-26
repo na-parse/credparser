@@ -28,7 +28,38 @@ Edit `credparser/seed.py`:
 MASTER_SEED = "your-secure-master-seed-here"
 ```
 
-For production environments, integrate with your secrets management system:
+### Advanced Configuration Options
+
+#### External Seed File
+
+Generate an external binary seed file:
+```python
+import secrets
+with open('.master_seed', 'wb') as f:
+    f.write(secrets.token_bytes(128))
+```
+
+Modify `credparser/seed.py` to use it:
+```python
+import hashlib
+with open('.master_seed', 'rb') as f:
+    seed_bin = f.read()
+    MASTER_SEED = hashlib.sha256(seed_bin).hexdigest()
+```
+
+#### Self-Hashing Seed
+
+Hash the seed.py file itself:
+```python
+import hashlib
+with open(__file__, 'rb') as f:
+    h = hashlib.sha256()
+    for chunk in iter(lambda: f.read(8192), b''):
+        h.update(chunk)
+MASTER_SEED = h.hexdigest()
+```
+
+#### Production Integration
 
 ```python
 import os
@@ -117,7 +148,10 @@ CredParser(username=None, password=None, credentials=None)
 - Credentials are never stored as plaintext in memory
 - Each credential string uses unique salt generation
 - Two-level key derivation with SHA-256 hashing
-- Master seed must be secured in production environments
+- Master seed must be accessible to any user/system account needing to encode/decode
+- Credential strings should be treated as sensitive information
+- The salt value within credential strings provides the security layer
+
 
 ## Example Integration
 
