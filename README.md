@@ -1,6 +1,6 @@
 # credparser Embedded Credential Parsing
 
-`credparser` is intended to provide automation systems with end-point credential requirements the ability to embed credential values in a non-plain-text format.
+`credparser` is intended to provide a light-weight credential embedding solution for scripting environments interacting with end-point REST or other API systems, while avoiding saving credentials in plain-text format.
 
 
 ## Quick Start
