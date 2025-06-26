@@ -1,0 +1,31 @@
+# Local dev test files 
+devtest*.py
+
+# No VSCode workspace files
+*.code-workspace
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+
+# Unit test / coverage reports
+.pytest_cache/
+
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
