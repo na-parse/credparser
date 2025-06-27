@@ -11,6 +11,42 @@ def test_credparser_init_username_password():
     assert parser.password == "password"
     assert parser.credentials is not None
 
+def test_credparser_init_empty_username():
+    parser = CredParser(username="", password="password")
+    assert parser.username == ""
+    assert parser.password == "password"
+    assert parser.credentials is not None
+
+def test_credparser_init_empty_password():
+    parser = CredParser(username="user", password="")
+    assert parser.username == "user"
+    assert parser.password == ""
+    assert parser.credentials is not None
+
+def test_credparser_init_empty_username_and_password():
+    parser = CredParser(username="", password="")
+    assert parser.username == ""
+    assert parser.password == ""
+    assert parser.credentials is not None
+
+
+def test_credparser_load_credentials():
+    parser1 = CredParser(username="user", password="password")
+    encoded_creds = parser1.credentials
+    parser2 = CredParser()
+    parser2.load(encoded_creds)
+    assert parser2.username == "user"
+    assert parser2.password == "password"
+
+def test_credparser_reset_credentials():
+    parser = CredParser(username="user", password="password")
+    original_credentials = parser.credentials
+    parser.reset(username="newuser", password="newpassword")
+    assert parser.username == "newuser"
+    assert parser.password == "newpassword"
+    assert parser.credentials != original_credentials
+
+    
 
 def test_credparser_init_credentials():
     # Testing known encoded value decode
@@ -51,16 +87,17 @@ def test_credparser_init_both_creds_and_user_pass_fails():
         CredParser(username="user", password="password", credentials="abc")
 
 
-def test_credparser_load_credentials():
-    parser1 = CredParser(username="user", password="password")
-    encoded_creds = parser1.credentials
-    parser2 = CredParser()
-    parser2.load(encoded_creds)
-    assert parser2.username == "user"
-    assert parser2.password == "password"
 
 
 def test_credparser_load_invalid_credentials():
     parser = CredParser()
     with pytest.raises(InvalidCredentialString):
         parser.load("invalid-string")
+
+def test_credparser_readonly_attributes():
+    parser = CredParser()
+    with pytest.raises(AttributeError):
+        parser.username = "username"
+        parser.password = "password"
+        parser.credentials = "invalid-string"
+
