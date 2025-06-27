@@ -13,13 +13,13 @@ from .errors import *
 import hashlib
 import base64
 import random
-import struct
 from typing import Tuple
 
 SALT_LEN = 12
 
 def _binflip(invalue: int) -> int:
     return int('{:08b}'.format(invalue)[::-1], 2)
+
 
 def _generate_salt(length: int) -> str:
     grains = (
