@@ -7,10 +7,25 @@ from .mutators import _encode_credentials, _decode_credentials
 
 class CredParser():
     '''
-    CredParser
-
-    ...docstring goes here...
-    The username and password values are never statically saved in the class.
+    Credential parser for encoding/decoding username/password pairs.
+    
+    Handles credential string generation from username/password pairs and
+    extraction of credentials from encoded strings. Supports both initialization
+    with raw credentials or pre-encoded credential strings.
+    
+    Args:
+        username (str, optional): Username for credential pair
+        password (str, optional): Password for credential pair  
+        credentials (str, optional): Pre-encoded credential string
+        
+    Raises:
+        UsageError: Invalid parameter combinations
+        InvalidCredentialString: Malformed credential string
+        
+    Examples:
+        >>> parser = CredParser(username='user', password='pass')
+        >>> parser = CredParser(credentials='encoded_string')
+        >>> parser = CredParser()  # Initialize empty
     '''
     def __init__(self,
         username: str = None,
@@ -60,12 +75,25 @@ class CredParser():
 
     @property
     def credentials(self) -> str:
-        ''' return the credential string for the current constructor '''
+        '''
+        Get the encoded credential string.
+        
+        Returns:
+            str: Encoded credential string or None if uninitialized
+        '''
         return self._credentials
 
     @property
     def username(self) -> str:
-        ''' return the username for the loaded credentials string '''
+        '''
+        Extract username from credential string.
+        
+        Returns:
+            str: Decoded username or None if no credentials loaded
+            
+        Raises:
+            InvalidCredentialString: Credential string cannot be decoded
+        '''
         if not self.credentials: return None
         try:
             username, _ = _decode_credentials(self._credentials)
@@ -76,7 +104,15 @@ class CredParser():
 
     @property
     def password(self) -> str:
-        ''' return the password for the loaded credentials string '''
+        '''
+        Extract password from credential string.
+        
+        Returns:
+            str: Decoded password or None if no credentials loaded
+            
+        Raises:
+            InvalidCredentialString: Credential string cannot be decoded
+        '''
         if not self.credentials: return None
         try:
             _, password = _decode_credentials(self._credentials)
@@ -87,7 +123,13 @@ class CredParser():
 
     def load(self, credentials: str):
         '''
-        Load a credential string into the class post-init
+        Load pre-encoded credential string post-initialization.
+        
+        Args:
+            credentials (str): Encoded credential string to load
+            
+        Raises:
+            InvalidCredentialString: Credential string cannot be decoded
         '''
         self._credentials = credentials
         try:
@@ -97,6 +139,10 @@ class CredParser():
 
     def reset(self,username: str, password: str):
         '''
-        Reinitialize the object with a new username and password
+        Reinitialize with new username/password pair.
+        
+        Args:
+            username (str): New username
+            password (str): New password
         '''
         self.__init__(username=username,password=password)
