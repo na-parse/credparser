@@ -30,25 +30,47 @@ class CredParser():
             errmsg = 'Cannot set username and password with a credential string'
             raise UsageError(errmsg)        
         
-        self.credentials = credentials
+        self._credentials = credentials
 
-        if username and password:
+        if username is not None and password is not None:
             # Automatically generate the credential string
-            self.credentials = _encode_credentials(username, password)
+            self._credentials = _encode_credentials(username, password)
         
-        if self.credentials:
+        if self._credentials:
             # Credential string verification for either auto-gen or argument
             try:
-                _, _ = _decode_credentials(self.credentials)
+                _, _ = _decode_credentials(self._credentials)
             except InvalidCredentialString as e:
                 raise InvalidCredentialString(e) from None
 
+    def __repr__(self):
+        if self._credentials is None:
+            details = '<uninitialized>'
+        else:
+            details = (
+                f'credentials=\'{self.credentials}\', '
+                f'username=\'{self.username}\', '
+                f'password={"*"*len(self.password)}'
+            )
+        return f'CredParser({details})'
+    
+    def __str__(self):
+        return self.__repr__()
+
+
+    @property
+    def credentials(self) -> str:
+        ''' return the credential string for the current constructor '''
+        return self._credentials
 
     @property
     def username(self) -> str:
         ''' return the username for the loaded credentials string '''
         if not self.credentials: return None
-        username, _ = _decode_credentials(self.credentials)
+        try:
+            username, _ = _decode_credentials(self._credentials)
+        except InvalidCredentialString as e:
+            raise InvalidCredentialString(e) from None
         return username
 
 
@@ -56,7 +78,10 @@ class CredParser():
     def password(self) -> str:
         ''' return the password for the loaded credentials string '''
         if not self.credentials: return None
-        _, password = _decode_credentials(self.credentials)
+        try:
+            _, password = _decode_credentials(self._credentials)
+        except InvalidCredentialString as e:
+            raise InvalidCredentialString(e) from None
         return password
 
 
@@ -64,9 +89,14 @@ class CredParser():
         '''
         Load a credential string into the class post-init
         '''
-        self.credentials = credentials
+        self._credentials = credentials
         try:
-            _, _ = _decode_credentials(credentials)
+            _, _ = _decode_credentials(self._credentials)
         except InvalidCredentialString as e:
             raise InvalidCredentialString(e) from None
 
+    def reset(self,username: str, password: str):
+        '''
+        Reinitialize the object with a new username and password
+        '''
+        self.__init__(username=username,password=password)
