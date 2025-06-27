@@ -130,11 +130,12 @@ CredParser(username=None, password=None, credentials=None)
 
 - `username`: Returns decoded username (read-only)
 - `password`: Returns decoded password (read-only)
-- `credentials`: The encoded credential string
+- `credentials`: The encoded credential string (read-only)
 
 #### Methods
 
 - `load(credentials)`: Load new credential string post-initialization
+- `reset(username, password)`: Reset with a new username and password value
 
 ## Error Handling
 
