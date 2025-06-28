@@ -14,10 +14,18 @@ class UsageError(credparserError):
     ''' Invalid credparser usage '''
     pass
 
-class InvalidCredentialString(credparserError):
-    ''' Invalid credential string / decode failure '''
-    def __init__(self, msg: str = None):
-        super().__init__('Invalid or corrupt credential string')
+class InitFailure(credparserError):
+    ''' Initialization of credparser failed '''
+    pass
+
+class DecodeFailure(credparserError):
+    ''' Credential string decoding failure '''
+    pass
+
+class EncodeFailure(credparserError):
+    ''' Encoding failure -- serious and requires an issue '''
+    pass
+
 
 class InvalidDataType(credparserError):
     ''' Username and Password must be ascii compatible str '''

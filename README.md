@@ -1,7 +1,21 @@
 # credparser Embedded Credential Parsing
 
-`credparser` is intended to provide a light-weight credential embedding solution for scripting environments interacting with end-point REST or other API systems, while avoiding saving credentials in plain-text format.
+`credparser` provides a light-weight credential embedding solution for scripting environments interacting with end-point REST or other API systems, while avoiding saving credentials in plain-text format in situations where enterprise level secret management systems are not available, or integration creates an exceptional increase in complexity.
 
+## Warning - Obfuscation, not Security
+
+This package provides credential obfuscation and is only suggested in the following scenarios:
+
+- Small automation scripts with no existing secrets system
+- Isolated management systems with strict access rules
+- User credentials being encodes are restricted
+  - API specific service accounts, minimum necessary access
+
+Encoding administrator or priviledged personal account credentials using `credparser` is _HIGHLY_ discouraged.
+
+## Installation
+
+Manually place the `repo:./credparser/credparser` directory in the system/user PYTHONPATH as designed.  Package/pip support is not planned for the time being.
 
 ## Quick Start
 
@@ -18,75 +32,15 @@ print(creds.username)  # "admin"
 print(creds.password)  # "secret123"
 ```
 
-## Configuration
+`credparser` will attempt to the `master.seed` key file as `$HOME/.credparser/master.seed` the first time a credential string is created.  
 
-**Important**: Change the default master seed before production use.
+If the `master.seed` file changes or is moved, any existing credential strings will fail to decode.  The `master.seed` file should be protected as read-only by the user, similar to SSH keys.  
 
-Edit `credparser/seed.py`:
+Credential strings are User+Host specific and any other usage is not supported/discouraged.  The `master.seed` file can be moved to other systems, but the OS-level username must remain the same for decoding to succeed.
 
-```python
-MASTER_SEED = "your-secure-master-seed-here"
-```
 
-### Advanced Configuration Options
 
-#### External Seed File
-
-Generate an external binary seed file:
-```python
-import secrets
-with open('.master_seed', 'wb') as f:
-    f.write(secrets.token_bytes(128))
-```
-
-Modify `credparser/seed.py` to use it:
-```python
-import hashlib
-with open('.master_seed', 'rb') as f:
-    seed_bin = f.read()
-    MASTER_SEED = hashlib.sha256(seed_bin).hexdigest()
-```
-
-#### Self-Hashing Seed
-
-Hash the seed.py file itself:
-```python
-import hashlib
-with open(__file__, 'rb') as f:
-    h = hashlib.sha256()
-    for chunk in iter(lambda: f.read(8192), b''):
-        h.update(chunk)
-MASTER_SEED = h.hexdigest()
-```
-
-#### Production Integration
-
-```python
-import os
-from your_secrets_manager import get_secret
-
-MASTER_SEED = os.getenv('CREDPARSER_MASTER_SEED') or get_secret('credparser_seed')
-```
-
-## The Problem
-
-Secret managers are the way to go.  The `keyring` solution exists as well.  But at the end of the day, my observation has been that for small, quick REST access scripts, everyone seems to be loading plain user/password values from text files, environment variables (which are generally populated from plain text files), or some other clunky solution.
-
-Secret managers highly complicate lightweight scripts and establish a significant barrier to entry for initial developments, keyring only really works for interactive users, and if you're loading environment from plain text, your credentials are still out there somewhere in plain text.
-
-## credparser's Approach
-
-You:
-- Need to load a config file
-- Config file needs to contain credentials
-- Agree that credentials should never be stored in plain text
-
-`credparser`:
-- Basic encryption using sha256 hash based keys
-- Generates a base64 string that can be easily stored in a config file
-- Easy integration into python scripts for loading and decoding
-
-## Example
+## Usage Examples
 
 Create a credential string:
 
@@ -112,6 +66,25 @@ mycreds.load(mycredential_string)
 print(f'username={mycreds.username}, password={mycreds.password}')
 ```
 
+### Advanced Options
+
+An alternative `master.seed` file/location can be specified during CredParser() initialization
+
+```python
+custom_creds = CredParser(
+    username = "admin",
+    password = "secret123",
+    seed_path=f'/opt/secrets/{getpass.getuser()}/master.seed'
+)
+secret = custom_creds.credentials
+
+# Trying to load with default master.seed path will raise DecodeFailure
+creds = CredParser(credentials=secret)
+```
+```
+credparser.errors.DecodeFailure: Invalid credential string, unable to decode
+```
+
 ## API Reference
 
 ### CredParser Class
@@ -119,12 +92,19 @@ print(f'username={mycreds.username}, password={mycreds.password}')
 #### Constructor
 
 ```python
-CredParser(username=None, password=None, credentials=None)
+CredParser(
+    username: str = None,
+    password: str = None, 
+    credentials: str = None,
+    seed_path: str = None
+)
 ```
 
 - `username`, `password`: Both must be provided together or both None
 - `credentials`: Pre-encoded credential string
-- Cannot specify both username/password and credentials
+  - Cannot specify username/password and credentials at the same time
+- `seed_path`: Override the default path to the `master.seed` file
+
 
 #### Properties
 
@@ -140,18 +120,17 @@ CredParser(username=None, password=None, credentials=None)
 ## Error Handling
 
 - `UsageError`: Invalid parameter combinations
-- `InvalidCredentialString`: Corrupt/invalid credential data
+- `DecodeFailure`: Corrupt credential string, invalid master-key, or incorrect signing user
+- `EncodeFailure`: Internal encoding failure
 - `InvalidDataType`: Non-ASCII string inputs
-- `CryptError`: Cryptographic operation failures
 
 ## Security Notes
 
 - Credentials are never stored as plaintext in memory
 - Each credential string uses unique salt generation
-- Two-level key derivation with SHA-256 hashing
-- Master seed must be accessible to any user/system account needing to encode/decode
+- Key derivation is based on multi-round/multi-element SHA512 hashing
+- Credential strings are tied to combination of `master.seed` and OS-level user
 - Credential strings should be treated as sensitive information
-- The salt value within credential strings provides the security layer
 
 
 ## Example Integration

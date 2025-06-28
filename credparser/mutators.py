@@ -4,170 +4,155 @@ credparser / mutators
 Manipulators for data encoding and decoding
 
 '''
-try:
-    from .seed import MASTER_SEED
-except ImportError:
-    raise CryptError(f'Unable to retrieve MASTER_SEED - See documentation')
-
+from .seed import MasterSeed
 from .errors import *
+import getpass
 import hashlib
 import base64
-import random
+import secrets
 from typing import Tuple
+from pathlib import Path
 
 SALT_LEN = 12
 
-def _binflip(invalue: int) -> int:
+
+def binflip(invalue: int) -> int:
+    ''' Reverse the bit order inside a byte '''
     return int('{:08b}'.format(invalue)[::-1], 2)
 
-
-def _generate_salt(length: int) -> str:
+def nacl(length: int) -> str:
+    ''' Salt generation / Using conf friendly characters '''
     grains = (
         "0123456789"
         "abcdefghijklmnopqrstuvwxyz"
         "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     )
-    return ''.join(random.choice(grains) for _ in range(length))
+    return ''.join(secrets.choice(grains) for _ in range(length))
 
 
-def _str_to_int(s: str) -> int:
-    return int.from_bytes(s.encode('ascii'), 'big')
+def generate_key(master_seed: bytes, salt: str, signer: str) -> bytes:
+    ''' 
+    Generate a unique key using the master seed, salt, and signer.
 
-def _int_to_bytes(i: int) -> bytes:
-    length = ( i.bit_length() + 7 ) // 8 or 1
-    return i.to_bytes(length, 'big')
+    In general, we are expecting to use the OS level user as the 'signer'
 
-def _generate_key(master: str, salt: str, additional: str = None) -> bytes:
+    Key generation workflow:
+      TRANSFORM: master seed is XORed with repeating salt/signer pattern
+      HASH ROUNDS: salt determines a set number of hash rounds for key
     '''
-    Master key and Salt are converted to integers and multiplied together
-      and converted to a sha256 hash.
+    salt_bytes = str(salt).encode('ascii')
+    signer_bytes = str(signer).encode('ascii')
     
-    Additional is converted to an int (65537 if not supplied) and multiplied
-      by the floor div/7 of the salt and converted to a sha256 hash.
+    # Transform: XOR master_seed with repeated salt+username pattern
+    pattern = (
+        (salt_bytes + signer_bytes) * 
+        ( (len(master_seed) // len(salt_bytes + signer_bytes)) + 1 )
+    )
+    # Clip pattern to length of master_seed and XOR
+    pattern = pattern[:len(master_seed)]
+    transformed = bytes(a ^ b for a, b in zip(master_seed, pattern))
     
-    The hashes are XORed and returned as the key.
-    '''
-    master_int = _str_to_int(master)
-    salt_int = _str_to_int(salt)
-
-    product = master_int * salt_int
-
-    if additional is not None:
-        additional_int = _str_to_int(str(additional))
-    else:
-        additional_int = 65537
+    # Determine hash rounds from salt (1-12 rounds)
+    salt_int = sum(ord(c) for c in salt)
+    hash_rounds = (salt_int % 12) + 1
     
-    mask = additional_int * ( salt_int // 7 )
+    # Multiple hash rounds for additional transformation
+    result = transformed
+    for _ in range(hash_rounds):
+        result = hashlib.sha512(result + salt_bytes + signer_bytes).digest()
     
-    # Convert to bytes for hashing
-    product_bytes = _int_to_bytes(product)
-    mask_bytes = _int_to_bytes(mask)
-    product_hash = hashlib.sha256(product_bytes).digest()
-    mask_hash = hashlib.sha256(mask_bytes).digest()
-    xored = bytes(a ^ b for a, b in zip(product_hash, mask_hash))
-    return hashlib.sha256(xored).digest()
+    return result
 
 
-def _key_filter(data: bytes, key: bytes) -> bytes:
+def key_filter(data: bytes, key: bytes) -> bytes:
+    ''' XOR the data against the key '''
     extended_key = (key * ((len(data) // len(key)) + 1))[:len(data)]
     return bytes(a ^ b for a, b in zip(data, extended_key))
 
 
-def _encode_credentials(username: str, password: str) -> str:
+def _encode_credentials(username: str, password: str, seed_path: Path = None) -> str:
     '''
     Encode is wrapped to provide error handling and catching for data types
     '''
+    master_seed = MasterSeed(allow_init=True, seed_path=seed_path)
+
     if not isinstance(username, str) or not isinstance(password, str):
         raise InvalidDataType()
+
+    # Catch all Exceptions during encode so we can provide a reliable
+    #   exception for importers when this fails: EncodeFailure()    
     try:
-        return _encode(username, password)
+        return encode(master_seed.seed, username, password)
     except Exception as e:
-        raise e from None
+        errmsg = (
+            f'Unexpected issue while encoding credentials: {e}'
+        )
+        raise EncodeFailure(errmsg) from None
 
-def _encode(username: str, password: str, master: str = None) -> str:
-    master = master or MASTER_SEED
-    salt = _generate_salt(SALT_LEN)
-    key1 = _generate_key(master, salt)
 
-    # Prepare username section: salt + len(username) + username
-    username_section = salt + chr(len(username)) + username
-    username_flipped = bytes(_binflip(b) for b in username_section.encode('ascii'))
-    username_encrypted = _key_filter(username_flipped, key1)
+def encode(master_seed: bytes, username: str, password: str) -> str:
+    # Keys are 'signed' by the current OS level user
+    os_username = getpass.getuser()
+    salt = nacl(SALT_LEN)
+    key = generate_key(master_seed, salt, os_username)
+    message = salt + chr(len(username)) + username + password
+    egassem = bytes(binflip(b) for b in message.encode('ascii'))
+    egassem_cipher = key_filter(egassem, key)
     
-    key2 = _generate_key(
-        master, 
-        salt, 
-        hashlib.sha256(username_encrypted).hexdigest()
-    )
-    
-    # Encrypt password
-    password_flipped = bytes(_binflip(b) for b in password.encode('ascii'))
-    password_encrypted = _key_filter(password_flipped, key2)
-    
-    # Combine and encode
-    cipher_text = username_encrypted + password_encrypted
-    cipher_b64 = base64.b64encode(cipher_text).decode()
-    
+    cipher_b64 = base64.b64encode(egassem_cipher).decode()
     return salt + cipher_b64
 
 
-
-def _decode_credentials(credential_string: str) -> Tuple[str, str]:
+def _decode_credentials(credential_string: str, seed_path: Path = None) -> Tuple[str, str]:
     '''
     Actual decode method is wrapped to provide better error catching and
       handling for decryption failures.
     '''
+    master_seed = MasterSeed(allow_init=False, seed_path=seed_path)
     try:
-        return _decode(credential_string)
-    except UnicodeDecodeError as e:
-        raise InvalidCredentialString() from None
-    except ValueError as e:
-        if 'Incorrect padding' in str(e):
-            raise InvalidCredentialString() from None
-        else:
-            raise CryptError(str(e)) from None
+        return decode(master_seed.seed, credential_string)
+    except DecodeFailure as e:
+        raise DecodeFailure(e) from None
+    except Exception as e:
+        # Obscure package internals and ensure importers receive a 
+        # predictable exception when decode fails: DecodeFailure()
+        errmsg = (
+            f'Unable to decode the supplied credential string, '
+            f'string, master_seed, or incorrect signer. \n--\n{e}'
+        )
+        raise DecodeFailure(errmsg)
     
 
-def _decode(credential_string: str, master: str = None) -> Tuple[str, str]:
-    master = master or MASTER_SEED
+def decode(master_seed: bytes, credential_string: str) -> Tuple[str, str]:
+    # Extract plain-text Salt and base64 cipher text from credential string
     salt = credential_string[:SALT_LEN]
     cipher_b64 = credential_string[SALT_LEN:]
     cipher_text = base64.b64decode(cipher_b64)
-    key1 = _generate_key(master, salt)
+    # Keys are 'signed' by the current OS level user
+    os_username = getpass.getuser()
+    key = generate_key(master_seed, salt, os_username)
 
-    # Decrypt first 9 bytes to get salt verification and username length
-    header_encrypted = cipher_text[:SALT_LEN+1]
-    header_decrypted = _key_filter(header_encrypted, key1)
-    header_unflipped = bytes(_binflip(b) for b in header_decrypted)
+    # Attempt to decrypt the cipher text
+    egassem = key_filter(cipher_text, key)
+    message = bytes(binflip(b) for b in egassem)
 
-    # Verify salt
-    if header_unflipped[:SALT_LEN].decode('ascii') != salt:
-        raise ValueError("Invalid credential string or master key")
-    
-    # Get Username field length
-    username_len = header_unflipped[SALT_LEN]
-
-    # Decode the full username header section cipher text
-    username_cipher = cipher_text[:SALT_LEN+1+username_len]
-    username_decrypted = _key_filter(username_cipher, key1)
-
-    # Extract the username from the username header section
-    username = bytes(
-        _binflip(b) for b in username_decrypted
-    ).decode('ascii')[SALT_LEN+1:]
-    
-    # Second level key
-    username_section_encrypted = cipher_text[:SALT_LEN+username_len+1]
-    key2 = _generate_key(
-        master, 
-        salt, 
-        hashlib.sha256(username_section_encrypted).hexdigest()
-    )
-    
-    # Decrypt password
-    password_offset = SALT_LEN + username_len + 1
-    password_encrypted = cipher_text[password_offset:]
-    password_decrypted = _key_filter(password_encrypted, key2)
-    password = bytes(_binflip(b) for b in password_decrypted).decode()
+    # Data Extraction try/except block
+    # - Decryption failures manifest during byte->str decodes() as the raw
+    #   byte codes will not align with real ascii byte values
+    try:
+        # Extract message components
+        msg_salt = message[:SALT_LEN].decode('ascii')
+        if salt != msg_salt:
+            raise DecodeFailure(
+                f'Invalid credential string, unable to decode'
+            )
+        username_len = message[SALT_LEN]
+        username = message[SALT_LEN+1:SALT_LEN+1+username_len].decode('ascii')
+        password = message[SALT_LEN+1+username_len:].decode('ascii')
+    except UnicodeDecodeError:
+        errmsg = (
+            f'Invalid credential string, unable to decode'
+        )
+        raise DecodeFailure(errmsg)
     
     return username, password

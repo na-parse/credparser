@@ -4,6 +4,7 @@ credparser / __init__
 
 from .errors import *
 from .mutators import _encode_credentials, _decode_credentials
+from pathlib import Path
 
 class CredParser():
     '''
@@ -17,6 +18,7 @@ class CredParser():
         username (str, optional): Username for credential pair
         password (str, optional): Password for credential pair  
         credentials (str, optional): Pre-encoded credential string
+        seed_path (Path, optional): Alternative master.seed file location
         
     Raises:
         UsageError: Invalid parameter combinations
@@ -30,7 +32,8 @@ class CredParser():
     def __init__(self,
         username: str = None,
         password: str = None,
-        credentials: str = None
+        credentials: str = None,
+        seed_path: Path = None
     ):
         # Username and password must either be both set or None
         if (
@@ -46,18 +49,23 @@ class CredParser():
             raise UsageError(errmsg)        
         
         self._credentials = credentials
+        self._seed_path = Path(seed_path) if seed_path is not None else None
 
         if username is not None and password is not None:
             # Automatically generate the credential string
-            self._credentials = _encode_credentials(username, password)
-        
+            self._credentials = _encode_credentials(
+                username=username, 
+                password=password,
+                seed_path=self._seed_path
+            )
+
         if self._credentials:
             # Credential string verification for either auto-gen or argument
             try:
-                _, _ = _decode_credentials(self._credentials)
-            except InvalidCredentialString as e:
-                raise InvalidCredentialString(e) from None
-
+                _, _ = _decode_credentials(self._credentials, seed_path=self._seed_path)
+            except DecodeFailure as e:
+                raise DecodeFailure(e) from None
+    
     def __repr__(self):
         if self._credentials is None:
             details = '<uninitialized>'
@@ -65,7 +73,8 @@ class CredParser():
             details = (
                 f'credentials=\'{self.credentials}\', '
                 f'username=\'{self.username}\', '
-                f'password={"*"*len(self.password)}'
+                f'password={"*"*len(self.password)}, '
+                f'seed_path={str(self._seed_path)}'
             )
         return f'CredParser({details})'
     
@@ -92,13 +101,13 @@ class CredParser():
             str: Decoded username or None if no credentials loaded
             
         Raises:
-            InvalidCredentialString: Credential string cannot be decoded
+            DecodeFailure: Credential string cannot be decoded
         '''
         if not self.credentials: return None
         try:
-            username, _ = _decode_credentials(self._credentials)
-        except InvalidCredentialString as e:
-            raise InvalidCredentialString(e) from None
+            username, _ = _decode_credentials(self._credentials, seed_path=self._seed_path)
+        except DecodeFailure as e:
+            raise DecodeFailure(e) from None
         return username
 
 
@@ -111,13 +120,13 @@ class CredParser():
             str: Decoded password or None if no credentials loaded
             
         Raises:
-            InvalidCredentialString: Credential string cannot be decoded
+            DecodeFailure: Credential string cannot be decoded
         '''
         if not self.credentials: return None
         try:
-            _, password = _decode_credentials(self._credentials)
-        except InvalidCredentialString as e:
-            raise InvalidCredentialString(e) from None
+            _, password = _decode_credentials(self._credentials, seed_path=self._seed_path)
+        except DecodeFailure as e:
+            raise DecodeFailure(e) from None
         return password
 
 
@@ -129,13 +138,13 @@ class CredParser():
             credentials (str): Encoded credential string to load
             
         Raises:
-            InvalidCredentialString: Credential string cannot be decoded
+            DecodeFailure: Credential string cannot be decoded
         '''
         self._credentials = credentials
         try:
-            _, _ = _decode_credentials(self._credentials)
-        except InvalidCredentialString as e:
-            raise InvalidCredentialString(e) from None
+            _, _ = _decode_credentials(self._credentials, seed_path=self._seed_path)
+        except DecodeFailure as e:
+            raise DecodeFailure(e) from None
 
     def reset(self,username: str, password: str):
         '''
@@ -145,4 +154,4 @@ class CredParser():
             username (str): New username
             password (str): New password
         '''
-        self.__init__(username=username,password=password)
+        self.__init__(username=username,password=password, seed_path=self._seed_path)
