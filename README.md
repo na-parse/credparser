@@ -8,10 +8,9 @@ This package provides credential obfuscation and is only suggested in the follow
 
 - Small automation scripts with no existing secrets system
 - Isolated management systems with strict access rules
-- User credentials being encodes are restricted
-  - API specific service accounts, minimum necessary access
+- Service accounts or other restricted credential types
 
-Encoding administrator or priviledged personal account credentials using `credparser` is _HIGHLY_ discouraged.
+Encoded credentials should only have the minimum necessary access to perform the required work to limit impact if they are exposed.  You are _highly_ discouraged from using `credparser` to encode administrator or personal priviledged account credentials.
 
 ## Installation
 
