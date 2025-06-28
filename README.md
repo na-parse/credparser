@@ -32,12 +32,13 @@ print(creds.username)  # "admin"
 print(creds.password)  # "secret123"
 ```
 
-`credparser` will attempt to the `master.seed` key file as `$HOME/.credparser/master.seed` the first time a credential string is created.  
+The `credparser` package uses a user-specific `master.seed` file to server as the primary seed for key generation.  
 
-If the `master.seed` file changes or is moved, any existing credential strings will fail to decode.  The `master.seed` file should be protected as read-only by the user, similar to SSH keys.  
+By default, the key file will be created as `$HOME/.credparser/master.seed` the first time a credential string is created.  
 
-Credential strings are User+Host specific and any other usage is not supported/discouraged.  The `master.seed` file can be moved to other systems, but the OS-level username must remain the same for decoding to succeed.
+If the `master.seed` file changes or is moved, any existing credential strings will fail to decode.  The `master.seed` file should be protected as read-only by the user, similar to SSH keys (`chmod 600 master.seed`).  
 
+Credential strings are also signed by the OS-level username.  The `master.seed` file can be moved to other systems, but the OS-level username must remain the same for decoding to succeed.
 
 
 ## Usage Examples
