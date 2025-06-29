@@ -9,24 +9,19 @@ import stat
 from pathlib import Path
 from .errors import InitFailure
 
-CREDPARSER_SEED_FILE = (
-    Path().home() / '.credparser/master.seed'
-)
 
 class MasterSeed():
-    def __init__(self, allow_init: bool = False, seed_path: Path = None):
+    def __init__(self, allow_init: bool, seed_path: Path):
         ''' 
         Verify seed exists and can be read, otherwise initialize a new value.
 
         Note that decode operations are dependent on a master seed pre-existing
-          so attempts to decode will block init.
+          so attempts to decode without an existing seed will raise
+          as an InitFailure exception
         '''
         try:
             self._allow_init = bool(allow_init)
-
-            # Check for manual seed_path override
-            if seed_path is not None: self.seed_path = Path(seed_path)
-            else: self.seed_path = CREDPARSER_SEED_FILE
+            self.seed_path = Path(seed_path)
             
             if self.seed_path.exists():
                 # Verify that the seed data can be read

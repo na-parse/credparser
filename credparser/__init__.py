@@ -6,6 +6,9 @@ from .errors import *
 from .mutators import _encode_credentials, _decode_credentials
 from pathlib import Path
 
+# Setup the default master.seed file path based on user Home directory
+DEFAULT_SEED_FILE = Path().home() / '.credparser/master.seed'
+
 class CredParser():
     '''
     Credential parser for encoding/decoding username/password pairs.
@@ -49,20 +52,22 @@ class CredParser():
             raise UsageError(errmsg)        
         
         self._credentials = credentials
-        self._seed_path = Path(seed_path) if seed_path is not None else None
+        self.seed_path = (
+            Path(seed_path) if seed_path is not None else DEFAULT_SEED_FILE
+        )
 
         if username is not None and password is not None:
             # Automatically generate the credential string
             self._credentials = _encode_credentials(
                 username=username, 
                 password=password,
-                seed_path=self._seed_path
+                seed_path=self.seed_path
             )
 
         if self._credentials:
             # Credential string verification for either auto-gen or argument
             try:
-                _, _ = _decode_credentials(self._credentials, seed_path=self._seed_path)
+                _, _ = _decode_credentials(self._credentials, seed_path=self.seed_path)
             except DecodeFailure as e:
                 raise DecodeFailure(e) from None
     
@@ -74,7 +79,7 @@ class CredParser():
                 f'credentials=\'{self.credentials}\', '
                 f'username=\'{self.username}\', '
                 f'password={"*"*len(self.password)}, '
-                f'seed_path={str(self._seed_path)}'
+                f'seed_path={str(self.seed_path)}'
             )
         return f'CredParser({details})'
     
@@ -105,7 +110,7 @@ class CredParser():
         '''
         if not self.credentials: return None
         try:
-            username, _ = _decode_credentials(self._credentials, seed_path=self._seed_path)
+            username, _ = _decode_credentials(self._credentials, seed_path=self.seed_path)
         except DecodeFailure as e:
             raise DecodeFailure(e) from None
         return username
@@ -124,7 +129,7 @@ class CredParser():
         '''
         if not self.credentials: return None
         try:
-            _, password = _decode_credentials(self._credentials, seed_path=self._seed_path)
+            _, password = _decode_credentials(self._credentials, seed_path=self.seed_path)
         except DecodeFailure as e:
             raise DecodeFailure(e) from None
         return password
@@ -142,7 +147,7 @@ class CredParser():
         '''
         self._credentials = credentials
         try:
-            _, _ = _decode_credentials(self._credentials, seed_path=self._seed_path)
+            _, _ = _decode_credentials(self._credentials, seed_path=self.seed_path)
         except DecodeFailure as e:
             raise DecodeFailure(e) from None
 
@@ -154,4 +159,4 @@ class CredParser():
             username (str): New username
             password (str): New password
         '''
-        self.__init__(username=username,password=password, seed_path=self._seed_path)
+        self.__init__(username=username,password=password, seed_path=self.seed_path)
