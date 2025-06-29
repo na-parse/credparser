@@ -1,0 +1,3 @@
+# Minimum Hash Rounds cannot be higher than Max Hash Rounds
+MAX_HASH_ROUNDS = 20
+MIN_HASH_ROUNDS = 30

@@ -130,6 +130,9 @@ def test_credparser_config_min_hash_rounds_fails():
     with pytest.raises(ConfigError):
         config = CredParserConfig(config_file=Path(__file__).parent / 'dot_config_test_min_hash')
 
+def test_credparser_config_min_higher_than_max_hash_rounds_fails():
+    with pytest.raises(ConfigError):
+        config = CredParserConfig(config_file=Path(__file__).parent / 'dot_config_test_minmax_hash')
 
 
 # Cleanup fixture - runs after all tests complete
