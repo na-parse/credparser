@@ -14,7 +14,8 @@ from typing import Tuple
 from pathlib import Path
 
 SALT_LEN = 12
-
+MAX_HASH_ROUNDS = 24
+MIN_HASH_ROUNDS = 3
 
 def binflip(invalue: int) -> int:
     ''' Reverse the bit order inside a byte '''
@@ -52,9 +53,13 @@ def generate_key(master_seed: bytes, salt: str, signer: str) -> bytes:
     pattern = pattern[:len(master_seed)]
     transformed = bytes(a ^ b for a, b in zip(master_seed, pattern))
     
-    # Determine hash rounds from salt (1-12 rounds)
+    # Determine hash rounds from salt
     salt_int = sum(ord(c) for c in salt)
-    hash_rounds = (salt_int % 12) + 1
+    hash_rounds = (
+        (salt_int % MAX_HASH_ROUNDS) 
+        if (salt_int % MAX_HASH_ROUNDS) > MIN_HASH_ROUNDS
+        else MIN_HASH_ROUNDS
+    )
     
     # Multiple hash rounds for additional transformation
     result = transformed
