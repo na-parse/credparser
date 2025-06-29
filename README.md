@@ -84,6 +84,23 @@ creds = CredParser(credentials=secret)
 ```
 credparser.errors.DecodeFailure: Invalid credential string, unable to decode
 ```
+## Configuration
+
+Some internal values can be adjusted by creating the file `.config` in the `credparser` module directory.
+
+```
+# Length of the salt values - Must be >= 8 (Default: 12)
+SALT_LEN = 12
+
+# Maximum number of hash rounds during key generation (Default: 24)
+MAX_HASH_ROUNDS = 24
+
+# Minimum number of hash rounds during key generation - Must be > 1 (Default: 3)
+MIN_HASH_ROUNDS = 3
+``` 
+
+Note that changes to these values will invalidate previously encoded credentials for all system users.  It is recommended these settings only be modified during initial deployment.
+
 
 ## API Reference
 
