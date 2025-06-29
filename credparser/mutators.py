@@ -4,8 +4,10 @@ credparser / mutators
 Manipulators for data encoding and decoding
 
 '''
+from .config import config
 from .seed import MasterSeed
 from .errors import *
+
 import getpass
 import hashlib
 import base64
@@ -13,9 +15,6 @@ import secrets
 from typing import Tuple
 from pathlib import Path
 
-SALT_LEN = 12
-MAX_HASH_ROUNDS = 24
-MIN_HASH_ROUNDS = 3
 
 def binflip(invalue: int) -> int:
     ''' Reverse the bit order inside a byte '''
@@ -56,11 +55,11 @@ def generate_key(master_seed: bytes, salt: str, signer: str) -> bytes:
     # Determine hash rounds from salt
     salt_int = sum(ord(c) for c in salt)
     hash_rounds = (
-        (salt_int % MAX_HASH_ROUNDS) 
-        if (salt_int % MAX_HASH_ROUNDS) > MIN_HASH_ROUNDS
-        else MIN_HASH_ROUNDS
+        (salt_int % config.max_hash_rounds) 
+        if (salt_int % config.max_hash_rounds) > config.min_hash_rounds
+        else config.min_hash_rounds
     )
-    
+
     # Multiple hash rounds for additional transformation
     result = transformed
     for _ in range(hash_rounds):
@@ -98,7 +97,7 @@ def _encode_credentials(username: str, password: str, seed_path: Path = None) ->
 def encode(master_seed: bytes, username: str, password: str) -> str:
     # Keys are 'signed' by the current OS level user
     os_username = getpass.getuser()
-    salt = nacl(SALT_LEN)
+    salt = nacl(config.salt_len)
     key = generate_key(master_seed, salt, os_username)
     message = salt + chr(len(username)) + username + password
     egassem = bytes(binflip(b) for b in message.encode('ascii'))
@@ -130,8 +129,8 @@ def _decode_credentials(credential_string: str, seed_path: Path = None) -> Tuple
 
 def decode(master_seed: bytes, credential_string: str) -> Tuple[str, str]:
     # Extract plain-text Salt and base64 cipher text from credential string
-    salt = credential_string[:SALT_LEN]
-    cipher_b64 = credential_string[SALT_LEN:]
+    salt = credential_string[:config.salt_len]
+    cipher_b64 = credential_string[config.salt_len:]
     cipher_text = base64.b64decode(cipher_b64)
     # Keys are 'signed' by the current OS level user
     os_username = getpass.getuser()
@@ -146,14 +145,14 @@ def decode(master_seed: bytes, credential_string: str) -> Tuple[str, str]:
     #   byte codes will not align with real ascii byte values
     try:
         # Extract message components
-        msg_salt = message[:SALT_LEN].decode('ascii')
+        msg_salt = message[:config.salt_len].decode('ascii')
         if salt != msg_salt:
             raise DecodeFailure(
                 f'Invalid credential string, unable to decode'
             )
-        username_len = message[SALT_LEN]
-        username = message[SALT_LEN+1:SALT_LEN+1+username_len].decode('ascii')
-        password = message[SALT_LEN+1+username_len:].decode('ascii')
+        username_len = message[config.salt_len]
+        username = message[config.salt_len+1:config.salt_len+1+username_len].decode('ascii')
+        password = message[config.salt_len+1+username_len:].decode('ascii')
     except UnicodeDecodeError:
         errmsg = (
             f'Invalid credential string, unable to decode'

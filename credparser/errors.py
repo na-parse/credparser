@@ -26,6 +26,9 @@ class EncodeFailure(credparserError):
     ''' Encoding failure -- serious and requires an issue '''
     pass
 
+class ConfigError(credparserError):
+    ''' Configuration load failure '''
+    pass
 
 class InvalidDataType(credparserError):
     ''' Username and Password must be ascii compatible str '''

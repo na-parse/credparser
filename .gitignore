@@ -1,6 +1,9 @@
 # Local dev test files 
 devtest*.py
 
+# Config file
+credparser/.config
+
 # No VSCode workspace files
 *.code-workspace
 

@@ -1,7 +1,7 @@
 '''
 credparser / __init__
 '''
-
+from .config import config
 from .errors import *
 from .mutators import _encode_credentials, _decode_credentials
 from pathlib import Path
