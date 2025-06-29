@@ -1,0 +1,2 @@
+# Salt Length must be 8 or higher
+SALT_LEN = 1

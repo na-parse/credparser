@@ -1,0 +1,2 @@
+# Minimum Hash Rounds must be higher than 1
+MIN_HASH_ROUNDS = 0

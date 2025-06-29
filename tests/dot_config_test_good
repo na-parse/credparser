@@ -1,0 +1,4 @@
+# credparser .config - test - Good values
+SALT_LEN = 20
+MAX_HASH_ROUNDS = 56
+MIN_HASH_ROUNDS = 12

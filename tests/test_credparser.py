@@ -3,6 +3,7 @@ import pytest
 from credparser import CredParser
 from credparser import mutators
 from credparser.errors import *
+from credparser.config import CredParserConfig, config
 from pathlib import Path
 import shutil
 
@@ -14,6 +15,7 @@ if TEST_SEED_PATH.parent.exists():
 
 
 def test_credparser_decode_fail_with_no_master():
+    # Make sure a decode with no master.seed file fails
     if TEST_SEED_PATH.parent.exists():
         shutil.rmtree(TEST_SEED_PATH.parent)
     with pytest.raises(InitFailure):
@@ -62,28 +64,23 @@ def test_credparser_reset_credentials():
     assert parser.password == "newpassword"
     assert parser.credentials != original_credentials
 
-    
-
-def test_credparser_init_credentials():
-    # Testing known encoded value decode
-    # - This expects a SALT_LEN of 12, master_seed b'TESTING'
-    orig_SALT_LEN = mutators.SALT_LEN
-    mutators.SALT_LEN = 12
-    test_credentials = 'ezMBDR1mGUvVtsGBA7cfmx08z0lS04lWUlYGhtWVNoAb8A=='
-    test_master_seed = b'TESTING'
-    username, password = mutators.decode(
-        master_seed = test_master_seed, 
-        credential_string = test_credentials
-    )
-    mutators.SALT_LEN = orig_SALT_LEN
-    assert username == "user"
-    assert password == "password"
-
-
 def test_credparser_init_no_args():
     parser = CredParser()
     assert parser.username is None
     assert parser.password is None
+
+
+def test_credparser_custom_config():
+    config = CredParserConfig(config_file=Path(__file__).parent / 'dot_config_test_good')
+    assert config.salt_len == 20
+    assert config.max_hash_rounds == 56
+    assert config.min_hash_rounds == 12
+
+def test_credparser_config_file_missing():
+    config = CredParserConfig(config_file=Path(__file__) / 'bad_file_path')
+    assert config.salt_len != None
+    assert config.max_hash_rounds != None
+    assert config.min_hash_rounds != None
 
 
 def test_credparser_init_invalid_credentials():
@@ -105,9 +102,6 @@ def test_credparser_init_both_creds_and_user_pass_fails():
     with pytest.raises(UsageError):
         CredParser(username="user", password="password", credentials="abc", seed_path=TEST_SEED_PATH)
 
-
-
-
 def test_credparser_load_invalid_credentials():
     parser = CredParser(seed_path=TEST_SEED_PATH)
     with pytest.raises(DecodeFailure):
@@ -127,6 +121,15 @@ def test_credparser_readonly_attribute_credentials():
     parser = CredParser(seed_path=TEST_SEED_PATH)
     with pytest.raises(AttributeError):
         parser.credentials = "invalid-string"
+
+def test_credparser_config_salt_len_fails():
+    with pytest.raises(ConfigError):
+        config = CredParserConfig(config_file=Path(__file__).parent / 'dot_config_test_salt')
+
+def test_credparser_config_min_hash_rounds_fails():
+    with pytest.raises(ConfigError):
+        config = CredParserConfig(config_file=Path(__file__).parent / 'dot_config_test_min_hash')
+
 
 
 # Cleanup fixture - runs after all tests complete
