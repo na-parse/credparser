@@ -74,6 +74,11 @@ class CredParserConfig:
             errors.append(f'Salt Length must be >= 8: {self.salt_len}')
         if self.min_hash_rounds < 1:
             errors.append(f'Minimum hash rounds must be >= 1: {self.min_hash_rounds}')
+        if self.min_hash_rounds > self.max_hash_rounds:
+            errors.append(
+                f'Minimum hash rounds cannot be greater than max: '
+                f'max={self.max_hash_rounds}, min={self.min_hash_rounds}'
+            )
         if errors:
             raise ConfigError(" - ".join(errors)) from None
         
