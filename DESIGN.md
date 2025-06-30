@@ -62,4 +62,70 @@ This limits attack surface if the encoded credentials are exposed.
 
 ## Encryption Details
 
-More to come, my dog is whining.
+Encryption protocol incredients:
+- `master_seed` Byte value read from a specified source file
+- `salt` Printable character set created randomly for each credential string
+- `OS-level username` String output from `getpass.getuser()`
+
+### Encode (Encryption) Process
+
+- Random salt is generated
+- Key is derived using master_seed, salt, and getpass.getuser()
+- Message is assembled as `salt``username_len``username``password`
+- Each message byte is bit order reversed (0010 1110 -> 0111 0100)
+- Message is XORed with key
+- Cipher Message is base64 encoded
+- Credential string returned is `salt``cipher_message`
+
+### Key Derivation
+
+Encryption key is generated using the following:
+
+- Salt + getpass.getuser() is converted to bytes
+- Master Seed is XORed with the salt+username mask to generate input bytes
+- Hash Rounds
+  - Salt is converted to an integer
+  - salt_int modulo using max_hash_rounds determines number of hash rounds
+  - sha512 digest of input bytes is repeated for each hash round
+- Final sha512 digest is returned as the key
+
+### Decode Process
+
+- Salt is extracted from credential string based configured salt_len
+  - If salt_len changes, decoding will fail due to incorrect salt values
+  - Salt is intentionally chosen to blend into base64 character sets
+  - cipher_message is extracted from base64 string based on salt_len offset
+- Master seed read from local filesystem source
+- Decrypter's `getpass.getuser()` name retrieved
+- If salt, seed, and username are the same, key derivation produces the same key
+- cipher_message bytes are decrypted using key
+- Each message byte is bit-order flipped (0111 0100 -> 0010 1110)
+- Message salt is compared to supplied salt to verify accurate decryption
+- Username Length is extracted and used to split username and password values
+- username and password are returned as a tuple
+
+Note that CredParser uses class properties to retrieve and return username and password values without assigning them to any static class variables to limit memory exposure.
+
+### Weakness
+
+The Salt is exposed as part of the key.  Familiarity with the source of the credential string can quickly result in accurate identification of the salt component (identify credparser codebase and locate configured salt_len).
+
+Assuming a credential string is compromised, attacker would have high likelihood of ability to identify what the expected `getpass.getuser()` output would be as part of the key generation process.
+
+If files containing the credential string are compromised, it is highly likely the master.seed is compromised as well.
+
+Cipher message data package is a 1-1 character representation.  Additional cryptographic methods are not being deployed because they would not increase the cipher strength significantly considering the previously discussed weaknesses.
+
+### Strengths
+
+Credential keys are sufficiently strong to remain secure in any situation where the string is exposed without access to the user's master.seed.  
+
+Multiple credential string compromise would not affect this due to the highly randomized nature of the sha512 hash method used to generate keys -- No credential string will be generated using the same key.
+
+Most situations where the credential string is exposed would result in compromise of other systems such as keyring, API keys for secret vault access, etc.
+
+## Close Notes
+
+Credential strings are sufficiently secure in situations where the deployed environment is already signficantly secured.  
+
+Strings should still be treated the same as plain-text username and password configurations; secure config files, do not embed in shared files, particularly in code bases. 
