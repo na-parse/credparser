@@ -42,7 +42,7 @@ def make_credentials(target: str = None) -> CredParser:
             sys.exit(1)
         
         # Generate credential string
-        creds = credparser.CredParser(username=username, password=password)
+        creds = CredParser(username=username, password=password)
         
         print()
         print("Generated Credential String:")
