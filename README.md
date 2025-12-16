@@ -10,11 +10,27 @@ This package provides credential obfuscation and is only suggested in the follow
 - Isolated management systems with strict access rules
 - Service accounts or other restricted credential types
 
-Encoded credentials should only have the minimum necessary access to perform the required work to limit impact if they are exposed.  You are _highly_ discouraged from using `credparser` to encode administrator or personal priviledged account credentials.
+Encoded credentials should only have the minimum necessary access to perform the required work to limit impact if they are exposed.  You are _highly_ discouraged from using `credparser` to encode administrator or personal privileged account credentials.
 
 ## Installation
 
-Manually place the `repo:./credparser/credparser` directory in the system/user PYTHONPATH as designed.  Package/pip support is not planned for the time being.
+Install from source:
+
+```bash
+pip install .
+```
+
+Or install in development mode:
+
+```bash
+pip install -e .
+```
+
+Or install directly from GitHub:
+
+```bash
+pip install git+https://github.com/naparse/credparser.git
+```
 
 ## Quick Start
 
@@ -31,9 +47,9 @@ print(creds.username)  # "admin"
 print(creds.password)  # "secret123"
 ```
 
-The `credparser` package uses a user-specific `master.seed` file to server as the primary seed for key generation.  
+The `credparser` package uses a user-specific `master.seed` file to serve as the primary seed for key generation.  
 
-By default, the key file will be created as `$HOME/.credparser/master.seed` the first time a credential string is created.  
+The key file will be created as `$HOME/.credparser/master.seed` the first time a credential string is created by default.  
 
 If the `master.seed` file changes or is moved, any existing credential strings will fail to decode.  The `master.seed` file should be protected as read-only by the user, similar to SSH keys (`chmod 600 master.seed`).  
 
@@ -42,35 +58,44 @@ Credential strings are also signed by the OS-level username.  The `master.seed` 
 
 ## Usage Examples
 
-Create a credential string:
+### Interactive CLI - Create Credential String
+
+For manual credential generation, use the interactive CLI tool:
 
 ```bash
-git clone https://github.com/naparse/credparser.git
-cd credparser
-./make_credentials.py
+credparser-make
+# Prompts for username/label and password
+# Outputs encoded credential string
 ```
 
-Create a credential string in code:
+### Programmatic - Create Credentials in Code
+
 ```python
 from credparser import CredParser
-mycreds = CredParser(username="username", password="password")
-print(mycreds.credentials)
+
+# Create credentials from username and password
+creds = CredParser(username="username", password="password")
+print(creds.credentials)  # Encoded credential string
 ```
 
-Decode a credential string in code:
+### Programmatic - Decode Credentials from String
+
 ```python
 from credparser import CredParser
+
 credential_string = 'abcdefgHIJkILMNO01234596pa=='
-mycreds = CredParser()
-mycreds.load(mycredential_string)
-print(f'username={mycreds.username}, password={mycreds.password}')
+creds = CredParser(credentials=credential_string)
+print(f'username={creds.username}, password={creds.password}')
 ```
 
-### Advanced Options
+## Advanced Features
 
-An alternative `master.seed` file/location can be specified during CredParser() initialization
+### Alternative Master Seed
+
+An alternative `master.seed` file/location can be specified during CredParser() initialization by supplying an argument for `seed_path`:
 
 ```python
+# Custom seed file at /opt/secrets/username/master.seed
 custom_creds = CredParser(
     username = "admin",
     password = "secret123",
@@ -81,25 +106,56 @@ secret = custom_creds.credentials
 # Trying to load with default master.seed path will raise DecodeFailure
 creds = CredParser(credentials=secret)
 ```
+
+Raises Exception:
 ```
 credparser.errors.DecodeFailure: Invalid credential string, unable to decode
 ```
-## Configuration
 
-Some internal values can be adjusted by creating the file `.config` in the `credparser` module directory.
+### Encoding Customization/Configuration
 
+The internal encoding algorithm can be tuned via the `credparser-config` command or programmatically. Configuration controls salt length and hash round settings used for key derivation.
+
+**Interactive Configuration (manual setup):**
+
+```bash
+credparser-config
+# Prompts for salt length and min/max hash rounds
 ```
-# Length of the salt values - Must be >= 8 (Default: 12)
-SALT_LEN = 12
 
-# Maximum number of hash rounds during key generation (Default: 24)
-MAX_HASH_ROUNDS = 24
+**Non-interactive Configuration (deployment automation):**
 
-# Minimum number of hash rounds during key generation - Must be > 1 (Default: 3)
-MIN_HASH_ROUNDS = 3
-``` 
+```bash
+credparser-config --salt-len 16 --min-hash 10 --max-hash 50
+```
 
-Note that changes to these values will invalidate previously encoded credentials for all system users.  It is recommended these settings only be modified during initial deployment.
+**View Current Configuration:**
+
+```bash
+credparser-config --test
+credparser-config --help
+```
+
+**Programmatic Configuration:**
+
+```python
+from credparser.guide import configure_credparser
+
+# Interactive mode (prompts user for values)
+configure_credparser()
+
+# Non-interactive mode (for deployment scripts and CI/CD)
+configure_credparser(salt_len=16, min_hash_rounds=10, max_hash_rounds=50)
+```
+
+**Configurable Values:**
+```
+SALT_LEN              Length of salt values (Default: 12, Minimum: 8)
+MIN_HASH_ROUNDS       Min key generation iterations (Default: 3, Minimum: 1)
+MAX_HASH_ROUNDS       Max key generation iterations (Default: 24)
+```
+
+**Important:** Changes to configuration values will invalidate all previously encoded credentials. Only modify settings during initial deployment or when regenerating all credential strings.
 
 
 ## API Reference
@@ -153,12 +209,21 @@ CredParser(
 ## Example Integration
 
 ```python
-import credparser
+import os
+import requests
+from dotenv import load_dotenv
+from credparser import CredParser
 
-# REST API authentication
-creds = credparser.CredParser(credentials=stored_cred_string)
+# Load environment configuration
+load_dotenv()
+stored_cred_string = os.getenv('EXAMPLE_CREDENTIALS')
+
+# Decode credentials
+creds = CredParser(credentials=stored_cred_string)
+
+# Use with REST API
 response = requests.get(
-    api_url,
+    'https://api.example.com/data',
     auth=(creds.username, creds.password)
 )
 ```

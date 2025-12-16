@@ -1,6 +1,8 @@
 '''
 credparser / __init__
 '''
+__version__ = '1.1.0'
+
 # Load and trigger configuration processing
 from .config import config
 
@@ -11,4 +13,4 @@ from .errors import *
 from .credparser import CredParser
 
 # Interactive credential creation guide
-from .guide import make_credentials
+from .guide import make_credentials, configure_credparser

@@ -1,9 +1,12 @@
+'''
+Test suite for the credparser module
+'''
 import pytest
 
 from credparser import CredParser
 from credparser import mutators
 from credparser.errors import *
-from credparser.config import CredParserConfig, config
+from credparser.config import CredParserConfig, load_config, config
 from pathlib import Path
 import shutil
 
@@ -71,16 +74,16 @@ def test_credparser_init_no_args():
 
 
 def test_credparser_custom_config():
-    config = CredParserConfig(config_file=Path(__file__).parent / 'dot_config_test_good')
-    assert config.salt_len == 20
-    assert config.max_hash_rounds == 56
-    assert config.min_hash_rounds == 12
+    cfg = load_config(config_file=Path(__file__).parent / 'dot_config_test_good')
+    assert cfg.salt_len == 20
+    assert cfg.max_hash_rounds == 56
+    assert cfg.min_hash_rounds == 12
 
 def test_credparser_config_file_missing():
-    config = CredParserConfig(config_file=Path(__file__) / 'bad_file_path')
-    assert config.salt_len != None
-    assert config.max_hash_rounds != None
-    assert config.min_hash_rounds != None
+    cfg = load_config(config_file=Path(__file__) / 'bad_file_path')
+    assert cfg.salt_len is not None
+    assert cfg.max_hash_rounds is not None
+    assert cfg.min_hash_rounds is not None
 
 
 def test_credparser_init_invalid_credentials():
@@ -100,7 +103,32 @@ def test_credparser_init_password_only_fails():
 
 def test_credparser_init_both_creds_and_user_pass_fails():
     with pytest.raises(UsageError):
-        CredParser(username="user", password="password", credentials="abc", seed_path=TEST_SEED_PATH)
+        CredParser(
+            username="user", 
+            password="password", 
+            credentials="abc", 
+            seed_path=TEST_SEED_PATH
+        )
+
+def test_credparser_username_too_long_fails():
+    with pytest.raises(UsageError):
+        CredParser(
+            username="a" * 256, 
+            password="password", 
+            seed_path=TEST_SEED_PATH
+        )
+
+def test_credparser_username_max_length():
+    parser = CredParser(username="a" * 255, password="password", seed_path=TEST_SEED_PATH)
+    assert len(parser.username) == 255
+
+def test_credparser_username_non_ascii_fails():
+    with pytest.raises(UsageError):
+        CredParser(username="user\u00e9", password="password", seed_path=TEST_SEED_PATH)
+
+def test_credparser_password_non_ascii_fails():
+    with pytest.raises(UsageError):
+        CredParser(username="user", password="pass\u00e9", seed_path=TEST_SEED_PATH)
 
 def test_credparser_load_invalid_credentials():
     parser = CredParser(seed_path=TEST_SEED_PATH)
@@ -124,15 +152,15 @@ def test_credparser_readonly_attribute_credentials():
 
 def test_credparser_config_salt_len_fails():
     with pytest.raises(ConfigError):
-        config = CredParserConfig(config_file=Path(__file__).parent / 'dot_config_test_salt')
+        load_config(config_file=Path(__file__).parent / 'dot_config_test_salt')
 
 def test_credparser_config_min_hash_rounds_fails():
     with pytest.raises(ConfigError):
-        config = CredParserConfig(config_file=Path(__file__).parent / 'dot_config_test_min_hash')
+        load_config(config_file=Path(__file__).parent / 'dot_config_test_min_hash')
 
 def test_credparser_config_min_higher_than_max_hash_rounds_fails():
     with pytest.raises(ConfigError):
-        config = CredParserConfig(config_file=Path(__file__).parent / 'dot_config_test_minmax_hash')
+        load_config(config_file=Path(__file__).parent / 'dot_config_test_minmax_hash')
 
 
 # Cleanup fixture - runs after all tests complete

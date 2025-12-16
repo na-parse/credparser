@@ -1,5 +1,11 @@
-# Local dev test files 
+# Local dev test files
 devtest*.py
+
+# Audit reports (internal use only)
+AUDIT_REPORT.md
+
+# Claude Code
+.claude/
 
 # Config file
 credparser/.config
@@ -32,3 +38,11 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+.eggs/
+MANIFEST
