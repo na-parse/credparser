@@ -21,7 +21,7 @@ This differs from console_scripts entry points defined in pyproject.toml:
 Relationship to pyproject.toml:
     [project.scripts]
     credparser-make = "credparser.guide:make_credentials"
-    credparser-config = "credparser.guide:configure_credparser"
+    credparser-config = "credparser.guide:configure_credparser_cli"
 
 These entry points are separate from __main__.py. Both approaches serve
 different use cases:

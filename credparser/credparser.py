@@ -24,12 +24,13 @@ class CredParser():
     Args:
         username (str, optional): Username for credential pair
         password (str, optional): Password for credential pair
+        signer (str, optional): Sets a custom signer, defaults to OS username
         credentials (str, optional): Pre-encoded credential string
         seed_path (Path, optional): Alternative master.seed file location
 
     Raises:
         UsageError: Invalid parameter combinations
-        InvalidCredentialString: Malformed credential string
+        DecodeFailure: Malformed credential string
 
     Examples:
         >>> parser = CredParser(username='user', password='pass')
@@ -40,6 +41,7 @@ class CredParser():
         username: str = None,
         password: str = None,
         credentials: str = None,
+        signer: str = None,
         seed_path: Path = None
     ):
         _logger.debug('CredParser init')
@@ -53,7 +55,7 @@ class CredParser():
             raise UsageError(errmsg)
 
         # Credential string cannot be manually set with username and password
-        if ( (username or password) and credentials ):
+        if (username or password) and credentials:
             errmsg = 'Cannot set username and password with a credential string'
             raise UsageError(errmsg)
 
@@ -73,6 +75,8 @@ class CredParser():
                 raise UsageError('password must contain only ASCII characters')
 
         self._credentials = credentials
+        self.signer = signer
+
         self.seed_path = (
             Path(seed_path) if seed_path is not None else DEFAULT_SEED_FILE
         )
@@ -83,6 +87,7 @@ class CredParser():
             self._credentials = _encode_credentials(
                 username=username,
                 password=password,
+                signer=self.signer,
                 seed_path=self.seed_path
             )
         elif credentials:
@@ -93,7 +98,11 @@ class CredParser():
         if self._credentials:
             # Credential string verification for either auto-gen or argument
             try:
-                _, _ = _decode_credentials(self._credentials, seed_path=self.seed_path)
+                _, _ = _decode_credentials(
+                    self._credentials,
+                    signer=self.signer,
+                    seed_path=self.seed_path
+                )
                 _logger.debug('Credential string validated')
             except DecodeFailure as e:
                 raise DecodeFailure(e) from None
@@ -106,6 +115,7 @@ class CredParser():
                 f'credentials=\'{self.credentials}\', '
                 f'username=\'{self.username}\', '
                 f'password={"*"*len(self.password)}, '
+                f'signer={self.signer!r}, '
                 f'seed_path={str(self.seed_path)}'
             )
         return f'CredParser({details})'
@@ -138,7 +148,11 @@ class CredParser():
         if self._credentials is None:
             return None
         try:
-            username, _ = _decode_credentials(self._credentials, seed_path=self.seed_path)
+            username, _ = _decode_credentials(
+                self._credentials,
+                signer=self.signer,
+                seed_path=self.seed_path
+            )
         except DecodeFailure as e:
             raise DecodeFailure(e) from None
         return username
@@ -158,7 +172,11 @@ class CredParser():
         if self._credentials is None:
             return None
         try:
-            _, password = _decode_credentials(self._credentials, seed_path=self.seed_path)
+            _, password = _decode_credentials(
+                self._credentials,
+                signer=self.signer,
+                seed_path=self.seed_path
+            )
         except DecodeFailure as e:
             raise DecodeFailure(e) from None
         return password
@@ -177,18 +195,28 @@ class CredParser():
         _logger.debug('Loading credential string')
         self._credentials = credentials
         try:
-            _, _ = _decode_credentials(self._credentials, seed_path=self.seed_path)
+            _, _ = _decode_credentials(
+                self._credentials,
+                signer=self.signer,
+                seed_path=self.seed_path
+            )
             _logger.debug('Credential string loaded and validated')
         except DecodeFailure as e:
             raise DecodeFailure(e) from None
 
-    def reset(self, username: str, password: str):
+    def reset(self, username: str, password: str, signer: str = None):
         '''
         Reinitialize with new username/password pair.
 
         Args:
             username (str): New username
             password (str): New password
+            signer (str, optional): New signer
         '''
         _logger.debug('Resetting credentials')
-        self.__init__(username=username, password=password, seed_path=self.seed_path)
+        self.__init__(
+            username=username,
+            password=password,
+            signer=signer,
+            seed_path=self.seed_path
+        )

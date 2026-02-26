@@ -25,7 +25,9 @@ class MasterSeed():
         try:
             self._allow_init = bool(allow_init)
             self.seed_path = Path(seed_path)
-            _logger.debug(f'MasterSeed init: path={self.seed_path}, allow_init={allow_init}')
+            _logger.debug(
+                f'MasterSeed init: path={self.seed_path}, allow_init={allow_init}'
+            )
 
             if self.seed_path.exists():
                 _logger.debug(f'Seed file exists: {self.seed_path}')
@@ -47,9 +49,9 @@ class MasterSeed():
             self._create_seed_file()
 
         except InitFailure:
-                raise
+            raise
         except Exception as e:
-                raise InitFailure(f"Unexpected error during seed initialization: {e}")
+            raise InitFailure(f"Unexpected error during seed initialization: {e}")
 
     def __str__(self):
         return f'MasterSeed(seed_path={str(self.seed_path)})'
@@ -75,7 +77,7 @@ class MasterSeed():
             raise InitFailure(f"Failed to read seed file {self.seed_path}: {e}")
 
 
-    def _create_credparser_dir(self,) -> None:
+    def _create_credparser_dir(self) -> None:
         ''' Create the credparse seed storage directory '''
         # Get the parent (dir) for the master_seed file as a Path()
         seed_dir = Path(self.seed_path).parent
@@ -85,7 +87,9 @@ class MasterSeed():
             # Verify permissions in case directory already existed
             current_mode = stat.S_IMODE(os.stat(seed_dir).st_mode)
             if current_mode != 0o700:
-                _logger.debug(f'Adjusting directory permissions from {oct(current_mode)} to 0o700')
+                _logger.debug(
+                    f'Adjusting directory permissions from {oct(current_mode)} to 0o700'
+                )
                 os.chmod(seed_dir, 0o700)
             _logger.debug(f'Seed directory ready: {seed_dir}')
         except (OSError, PermissionError) as e:
@@ -118,7 +122,9 @@ class MasterSeed():
             # Verify/set file permissions
             current_mode = stat.S_IMODE(os.stat(seed_path).st_mode)
             if current_mode != 0o600:
-                _logger.debug(f'Adjusting file permissions from {oct(current_mode)} to 0o600')
+                _logger.debug(
+                    f'Adjusting file permissions from {oct(current_mode)} to 0o600'
+                )
                 os.chmod(seed_path, 0o600)
             _logger.debug(f'Seed file created successfully: {seed_path}')
 
