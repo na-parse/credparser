@@ -1,29 +1,33 @@
 # credparser Embedded Credential Parsing
 
-`credparser` provides a light-weight credential embedding solution for scripting environments interacting with end-point REST or other API systems, while avoiding saving credentials in plain-text format in situations where enterprise level secret management systems are not available, or integration creates an exceptional increase in complexity.
+`credparser` provides a light-weight credential embedding solution for scripting
+environments interacting with end-point REST or other API systems, while avoiding
+saving credentials in plain-text format in situations where enterprise level
+secret management systems are not available, or integration creates an exceptional
+increase in complexity.
 
 ## Warning - Obfuscation, not Security
 
-This package provides credential obfuscation and is only suggested in the following scenarios:
+This package provides credential obfuscation and is only suggested in the
+following scenarios:
 
 - Small automation scripts with no existing secrets system
 - Isolated management systems with strict access rules
 - Service accounts or other restricted credential types
 
-Encoded credentials should only have the minimum necessary access to perform the required work to limit impact if they are exposed.  You are _highly_ discouraged from using `credparser` to encode administrator or personal privileged account credentials.
+Encoded credentials should only have the minimum necessary access to perform the
+required work to limit impact if they are exposed.  You are _highly_ discouraged
+from using `credparser` to encode administrator or personal privileged account
+credentials.
 
 ## Installation
 
 Install from source:
 
 ```bash
+git clone https://github.com/na-parse/credparser.git
+cd credparser
 pip install .
-```
-
-Or install in development mode:
-
-```bash
-pip install -e .
 ```
 
 Or install directly from GitHub:
@@ -47,13 +51,21 @@ print(creds.username)  # "admin"
 print(creds.password)  # "secret123"
 ```
 
-The `credparser` package uses a user-specific `master.seed` file to serve as the primary seed for key generation.  
+The `credparser` package uses a user-specific `master.seed` file to serve as the
+primary seed for key generation.
 
-The key file will be created as `$HOME/.credparser/master.seed` the first time a credential string is created by default.  
+The key file will be created as `$HOME/.credparser/master.seed` the first time a 
+credential string is created by default.  If the `master.seed` file changes or 
+is moved, any existing credential strings will fail to decode.  
 
-If the `master.seed` file changes or is moved, any existing credential strings will fail to decode.  The `master.seed` file should be protected as read-only by the user, similar to SSH keys (`chmod 600 master.seed`).  
+The `master.seed` file should be protected as read-only by the user, similar to 
+SSH keys (`chmod 600 master.seed`).  
 
-Credential strings are also signed by the OS-level username.  The `master.seed` file can be moved to other systems, but the OS-level username must remain the same for decoding to succeed.
+Credential strings are also signed by the OS-level username as reported by 
+`getpass.getuser()`.  If cross-system and/or multi-user decode is required, 
+the `master.seed` file must be shared and specified on load, as well as a 
+shared signing value.  See [Custom Signer](#custom-signer) under Advanced
+Features.
 
 
 ## Usage Examples
@@ -92,7 +104,8 @@ print(f'username={creds.username}, password={creds.password}')
 
 ### Alternative Master Seed
 
-An alternative `master.seed` file/location can be specified during CredParser() initialization by supplying an argument for `seed_path`:
+An alternative `master.seed` file/location can be specified during
+CredParser() initialization by supplying an argument for `seed_path`:
 
 ```python
 # Custom seed file at /opt/secrets/username/master.seed
@@ -112,9 +125,63 @@ Raises Exception:
 credparser.errors.DecodeFailure: Invalid credential string, unable to decode
 ```
 
+### Custom Signer
+
+By default, credential strings are signed using the OS-level username returned
+by `getpass.getuser()`.  This means a credential string encoded on one machine
+or user account cannot be decoded on a different machine or user account, even
+if the same `master.seed` file is used.
+
+Setting a custom `signer` value overrides this behavior, replacing the OS
+username in key derivation with a fixed string of your choice.  This is
+intended for scenarios where credentials need to be decoded across different
+platforms or user accounts — for example, encoding credentials in a deployment
+pipeline and decoding them in a service running under a different OS user.
+
+In practice, a custom signer is almost always paired with a shared `master.seed`
+file specified via `seed_path`, since both must match between encoding and
+decoding.
+
+**Encoding with a custom signer and shared seed:**
+
+```python
+from credparser import CredParser
+
+creds = CredParser(
+    username="svc_account",
+    password="secret123",
+    signer="my-shared-signer",
+    seed_path="/opt/secrets/shared/master.seed"
+)
+credential_string = creds.credentials
+```
+
+**Decoding with the same signer and seed (any user/platform):**
+
+```python
+from credparser import CredParser
+
+creds = CredParser(
+    credentials=credential_string,
+    signer="my-shared-signer",
+    seed_path="/opt/secrets/shared/master.seed"
+)
+print(creds.username)  # "svc_account"
+print(creds.password)  # "secret123"
+```
+
+Decoding with the wrong signer, wrong `master.seed`, or omitting either when
+they were set during encoding will raise a `DecodeFailure`.
+
+> **Note:** Neither the `signer` value nor the `seed_path` are stored in the
+> credential string. Both the encoding and decoding sides must use the same
+> values, coordinated out-of-band.
+
 ### Encoding Customization/Configuration
 
-The internal encoding algorithm can be tuned via the `credparser-config` command or programmatically. Configuration controls salt length and hash round settings used for key derivation.
+The internal encoding algorithm can be tuned via the `credparser-config` command
+or programmatically. Configuration controls salt length and hash round settings
+used for key derivation.
 
 **Interactive Configuration (manual setup):**
 
@@ -155,8 +222,24 @@ MIN_HASH_ROUNDS       Min key generation iterations (Default: 3, Minimum: 1)
 MAX_HASH_ROUNDS       Max key generation iterations (Default: 24)
 ```
 
-**Important:** Changes to configuration values will invalidate all previously encoded credentials. Only modify settings during initial deployment or when regenerating all credential strings.
+**Important:** Changes to configuration values will invalidate all previously
+encoded credentials. Only modify settings during initial deployment or when
+regenerating all credential strings.
 
+### Debug Logging
+
+Set the `CREDPARSER_DEBUG` environment variable to enable debug output to the console:
+
+```bash
+# Linux/Mac
+export CREDPARSER_DEBUG=1
+
+# Windows/Powershell
+$env:CREDPARSER_DEBUG=1
+```
+
+When enabled, internal operations (key generation, encode/decode steps, etc.)
+will be logged to stderr via Python's `logging` module.
 
 ## API Reference
 
@@ -167,16 +250,18 @@ MAX_HASH_ROUNDS       Max key generation iterations (Default: 24)
 ```python
 CredParser(
     username: str = None,
-    password: str = None, 
+    password: str = None,
     credentials: str = None,
-    seed_path: str = None
+    signer: str = None,
+    seed_path: Path = None
 )
 ```
 
 - `username`, `password`: Both must be provided together or both None
 - `credentials`: Pre-encoded credential string
   - Cannot specify username/password and credentials at the same time
-- `seed_path`: Override the default path to the `master.seed` file
+- `signer`: Optional - Set a signing string override; OS username by default
+- `seed_path`: Optional - Override the default path to the `master.seed` file
 
 
 #### Properties
@@ -188,12 +273,13 @@ CredParser(
 #### Methods
 
 - `load(credentials)`: Load new credential string post-initialization
-- `reset(username, password)`: Reset with a new username and password value
+- `reset(username, password, signer)`: Reset the class with a new set of credentials.
 
 ## Error Handling
 
 - `UsageError`: Invalid parameter combinations
-- `DecodeFailure`: Corrupt credential string, invalid master-key, or incorrect signing user
+- `DecodeFailure`: Corrupt credential string, invalid master-key, or incorrect
+  signing user
 - `EncodeFailure`: Internal encoding failure
 - `InvalidDataType`: Non-ASCII string inputs
 
@@ -202,7 +288,8 @@ CredParser(
 - Credentials are never stored as plaintext in memory
 - Each credential string uses unique salt generation
 - Key derivation is based on multi-round/multi-element SHA512 hashing
-- Credential strings are tied to combination of `master.seed` and OS-level user
+- Credential strings are tied to combination of `master.seed` and the signing 
+  value (defaults to OS user via `getpass.getuser()`
 - Credential strings should be treated as sensitive information
 
 

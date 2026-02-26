@@ -43,13 +43,14 @@ def generate_key(master_seed: bytes, salt: str, signer: str) -> bytes:
       TRANSFORM: master seed is XORed with repeating salt/signer pattern
       HASH ROUNDS: salt determines a set number of hash rounds for key
     '''
+    _logger.debug(f'Entered generate_key() with {signer=}')
     salt_bytes = str(salt).encode('ascii')
     signer_bytes = str(signer).encode('ascii')
 
     # Transform: XOR master_seed with repeated salt+username pattern
     pattern = (
         (salt_bytes + signer_bytes) *
-        ( (len(master_seed) // len(salt_bytes + signer_bytes)) + 1 )
+        ((len(master_seed) // len(salt_bytes + signer_bytes)) + 1)
     )
     # Clip pattern to length of master_seed and XOR
     pattern = pattern[:len(master_seed)]
@@ -77,7 +78,12 @@ def key_filter(data: bytes, key: bytes) -> bytes:
     return bytes(a ^ b for a, b in zip(data, extended_key))
 
 
-def _encode_credentials(username: str, password: str, seed_path: Path = None) -> str:
+def _encode_credentials(
+    username: str,
+    password: str,
+    signer: str = None,
+    seed_path: Path = None
+) -> str:
     '''
     Encode is wrapped to provide error handling and catching for data types
     '''
@@ -90,7 +96,7 @@ def _encode_credentials(username: str, password: str, seed_path: Path = None) ->
     # Catch all Exceptions during encode so we can provide a reliable
     #   exception for importers when this fails: EncodeFailure()
     try:
-        result = encode(master_seed.seed, username, password)
+        result = encode(master_seed.seed, username, password, signer)
         _logger.debug('Credentials encoded successfully')
         return result
     except Exception as e:
@@ -101,12 +107,19 @@ def _encode_credentials(username: str, password: str, seed_path: Path = None) ->
         raise EncodeFailure(errmsg) from None
 
 
-def encode(master_seed: bytes, username: str, password: str) -> str:
-    # Keys are 'signed' by the current OS level user
-    os_username = getpass.getuser()
+def encode(
+    master_seed: bytes,
+    username: str,
+    password: str,
+    signer: str = None
+) -> str:
+    # Set signer to current OS username if not specified
+    if signer is None:
+        signer = getpass.getuser()
+
     salt = nacl(config.salt_len)
-    _logger.debug('Generating key for encode')
-    key = generate_key(master_seed, salt, os_username)
+    _logger.debug(f'Generating key for encode with {signer=}')
+    key = generate_key(master_seed, salt, signer)
 
     # Build message as bytes - username/password encoded to ASCII at boundary
     username_bytes = username.encode('ascii')
@@ -126,15 +139,21 @@ def encode(master_seed: bytes, username: str, password: str) -> str:
     return salt + cipher_b64
 
 
-def _decode_credentials(credential_string: str, seed_path: Path = None) -> Tuple[str, str]:
+def _decode_credentials(
+    credential_string: str,
+    signer: str = None,
+    seed_path: Path = None,
+) -> Tuple[str, str]:
     '''
     Actual decode method is wrapped to provide better error catching and
       handling for decryption failures.
     '''
-    _logger.debug('Decoding credentials')
+    _logger.debug(f'Decoding credentials with {signer=}')
+
     master_seed = MasterSeed(allow_init=False, seed_path=seed_path)
+
     try:
-        result = decode(master_seed.seed, credential_string)
+        result = decode(master_seed.seed, credential_string, signer=signer)
         _logger.debug('Credentials decoded successfully')
         return result
     except DecodeFailure as e:
@@ -151,15 +170,21 @@ def _decode_credentials(credential_string: str, seed_path: Path = None) -> Tuple
         raise DecodeFailure(errmsg)
 
 
-def decode(master_seed: bytes, credential_string: str) -> Tuple[str, str]:
+def decode(
+    master_seed: bytes,
+    credential_string: str,
+    signer: str = None
+) -> Tuple[str, str]:
     # Extract plain-text Salt and base64 cipher text from credential string
     salt = credential_string[:config.salt_len]
     cipher_b64 = credential_string[config.salt_len:]
     cipher_text = base64.b64decode(cipher_b64)
-    # Keys are 'signed' by the current OS level user
-    os_username = getpass.getuser()
-    _logger.debug('Generating key for decode')
-    key = generate_key(master_seed, salt, os_username)
+
+    # Set signer to OS username if not set
+    if signer is None:
+        signer = getpass.getuser()
+    _logger.debug(f'Generating key for decode with {signer=}')
+    key = generate_key(master_seed, salt, signer)
 
     # Attempt to decrypt the cipher text
     egassem = key_filter(cipher_text, key)

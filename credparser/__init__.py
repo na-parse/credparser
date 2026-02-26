@@ -1,7 +1,24 @@
 '''
 credparser / __init__
 '''
-__version__ = '1.1.0'
+from importlib.metadata import version, PackageNotFoundError
+try:
+    __version__ = version('credparser')
+except PackageNotFoundError:
+    __version__ = 'embedded'
+
+import logging
+import os
+
+# Configure debug logging if CREDPARSER_DEBUG is set
+if os.environ.get('CREDPARSER_DEBUG'):
+    _handler = logging.StreamHandler()
+    _handler.setFormatter(logging.Formatter(
+        '%(name)s.%(funcName)s() [%(levelname)s] %(message)s'
+    ))
+    _pkg_logger = logging.getLogger(__name__)
+    _pkg_logger.setLevel(logging.DEBUG)
+    _pkg_logger.addHandler(_handler)
 
 # Load and trigger configuration processing
 from .config import config

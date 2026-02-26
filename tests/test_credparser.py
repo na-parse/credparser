@@ -163,6 +163,75 @@ def test_credparser_config_min_higher_than_max_hash_rounds_fails():
         load_config(config_file=Path(__file__).parent / 'dot_config_test_minmax_hash')
 
 
+def test_credparser_custom_signer_encode_decode():
+    # Credentials encoded with a custom signer should decode correctly
+    parser = CredParser(
+        username="user", password="password",
+        signer="custom_signer",
+        seed_path=TEST_SEED_PATH
+    )
+    assert parser.username == "user"
+    assert parser.password == "password"
+    assert parser.credentials is not None
+
+def test_credparser_custom_signer_stored():
+    # The signer value should be accessible on the instance
+    parser = CredParser(
+        username="user", password="password",
+        signer="custom_signer",
+        seed_path=TEST_SEED_PATH
+    )
+    assert parser.signer == "custom_signer"
+
+def test_credparser_custom_signer_wrong_signer_fails():
+    # Credentials encoded with one signer cannot be decoded with a different signer
+    parser = CredParser(
+        username="user", password="password",
+        signer="signer_a",
+        seed_path=TEST_SEED_PATH
+    )
+    encoded = parser.credentials
+    with pytest.raises(DecodeFailure):
+        CredParser(credentials=encoded, signer="signer_b", seed_path=TEST_SEED_PATH)
+
+def test_credparser_custom_signer_default_signer_fails():
+    # Credentials encoded with a custom signer cannot be decoded with the default signer
+    parser = CredParser(
+        username="user", password="password",
+        signer="definitely_not_os_user",
+        seed_path=TEST_SEED_PATH
+    )
+    encoded = parser.credentials
+    with pytest.raises(DecodeFailure):
+        CredParser(credentials=encoded, seed_path=TEST_SEED_PATH)
+
+def test_credparser_load_with_custom_signer():
+    # load() should use the signer set on the instance
+    parser_enc = CredParser(
+        username="user", password="password",
+        signer="custom_signer",
+        seed_path=TEST_SEED_PATH
+    )
+    encoded = parser_enc.credentials
+
+    parser_dec = CredParser(signer="custom_signer", seed_path=TEST_SEED_PATH)
+    parser_dec.load(encoded)
+    assert parser_dec.username == "user"
+    assert parser_dec.password == "password"
+
+def test_credparser_reset_with_custom_signer():
+    # reset() with a new signer should re-encode under the new signer
+    parser = CredParser(
+        username="user", password="password",
+        signer="signer_a",
+        seed_path=TEST_SEED_PATH
+    )
+    parser.reset(username="newuser", password="newpassword", signer="signer_b")
+    assert parser.username == "newuser"
+    assert parser.password == "newpassword"
+    assert parser.signer == "signer_b"
+
+
 # Cleanup fixture - runs after all tests complete
 @pytest.fixture(scope="module", autouse=True)
 def cleanup_test_directory():

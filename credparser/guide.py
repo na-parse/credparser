@@ -161,9 +161,9 @@ def _configure_interactive(
     Returns:
         Tuple of (salt_len, max_hash_rounds, min_hash_rounds)
     '''
-    print(f'Salt Length')
+    print('Salt Length')
     print(f'{"=" * 40}')
-    print(f'Salt works as the public key for your credparser credentials.')
+    print('Salt works as the public key for your credparser credentials.')
     print(f'Salt length must be {LIMIT_MIN_SALT_LEN} or larger.')
     print()
 
@@ -180,9 +180,9 @@ def _configure_interactive(
     print()
     print(f'Hashing Rounds')
     print(f'{"=" * 40}')
-    print(f'Hashing rounds are deterministically set using the salt as a seed')
-    print(f'and provide the core encryption/key generation functionality.')
-    print(f'Hash round maximums should optimally be >3x the minimum at least.')
+    print('Hashing rounds are deterministically set using the salt as a seed')
+    print('and provide the core encryption/key generation functionality.')
+    print('Hash round maximums should optimally be >3x the minimum at least.')
     print()
 
     # Min hash rounds
@@ -224,7 +224,8 @@ def configure_credparser(
     Writes configuration to the module's .config file.
 
     Args:
-        salt_len: Salt length (int). If provided with hash rounds, uses non-interactive mode.
+        salt_len: Salt length (int). If provided with hash rounds, uses
+            non-interactive mode.
         min_hash_rounds: Minimum hash rounds (int)
         max_hash_rounds: Maximum hash rounds (int)
         test: If True, validate and display current configuration without modifying
@@ -262,7 +263,9 @@ def configure_credparser(
 
     try:
         # Determine if interactive or non-interactive mode
-        if salt_len is not None and min_hash_rounds is not None and max_hash_rounds is not None:
+        if (salt_len is not None
+                and min_hash_rounds is not None
+                and max_hash_rounds is not None):
             # Non-interactive mode: use provided parameters
             _logger.debug('Non-interactive mode: using provided parameters')
             new_salt_len = salt_len
@@ -299,7 +302,10 @@ def configure_credparser(
             skip_warning = False
         else:
             # Partial parameters provided - error
-            print("Error: Either provide all three parameters (salt_len, min_hash_rounds, max_hash_rounds)")
+            print(
+                "Error: Either provide all three parameters"
+                " (salt_len, min_hash_rounds, max_hash_rounds)"
+            )
             print("       or provide none for interactive mode")
             sys.exit(1)
 
@@ -451,7 +457,9 @@ def configure_credparser_cli() -> None:
             configure_credparser(help=True)
         elif args.test:
             configure_credparser(test=True)
-        elif args.salt_len is not None or args.min_hash is not None or args.max_hash is not None:
+        elif (args.salt_len is not None
+                or args.min_hash is not None
+                or args.max_hash is not None):
             # Non-interactive mode
             configure_credparser(
                 salt_len=args.salt_len,

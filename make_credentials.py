@@ -9,4 +9,4 @@ from credparser import make_credentials
 
 
 if __name__ == "__main__":
-   make_credentials()
+    make_credentials()
