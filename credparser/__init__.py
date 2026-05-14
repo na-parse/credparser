@@ -30,4 +30,8 @@ from .errors import *
 from .credparser import CredParser
 
 # Interactive credential creation guide
-from .guide import make_credentials, configure_credparser
+# Lazy import to avoid RuntimeWarning when running `python -m credparser.make_cred`
+def make_credentials(*args, **kwargs):
+    '''Guided interactive credential parser object creation (lazy wrapper)'''
+    from .make_cred import make_credentials as _make_credentials
+    return _make_credentials(*args, **kwargs)

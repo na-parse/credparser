@@ -1,16 +1,22 @@
 '''
-credparser / guide.py
+credparser / configure.py
 
-Built in CLI dialogue guide for creating a credential string
-and configuring credparser settings.
+Interactive and non-interactive configuration for credparser settings.
+
+Provides both a programmatic interface and CLI entry point for
+customizing salt length and hash round parameters.
+
+Usage:
+    As a module:    python -m credparser.configure [OPTIONS]
+    As a command:   credparser-config [OPTIONS]
+    Programmatic:   from credparser.configure import configure_credparser
 '''
 import logging
-import getpass
 import sys
 import argparse
 from pathlib import Path
 
-from .credparser import CredParser, DEFAULT_SEED_FILE
+from .credparser import DEFAULT_SEED_FILE
 from .config import (
     CREDPARSER_CONFIG_FILE,
     DEFAULT_SALT_LEN,
@@ -23,65 +29,6 @@ from .config import (
 )
 
 _logger = logging.getLogger(__name__)
-
-
-def make_credentials(target: str = None) -> CredParser:
-    '''
-    Guided interactive credential parser object creation
-
-    Returns a CredParser object with the credential field populated.
-    '''
-    _logger.debug('Starting make_credentials guide')
-    print("Credential String Generator")
-    print("=" * 40)
-    print()
-    print(
-        f'Creating an encoded credential string using the credparser library.\n'
-        f'For API keys: Use a descriptive label as username, API key as password.\n'
-        f'\n'
-    )
-
-    try:
-        if target is not None:
-            print(f'Enter credentials for: {target}')
-
-        # Get username
-        username = input("Username/Label: ").strip()
-        if not username:
-            print("Error: Username cannot be empty")
-            sys.exit(1)
-
-        # Get password securely
-        password = getpass.getpass("Password/API Key: ")
-        if not password:
-            print("Error: Password cannot be empty")
-            sys.exit(1)
-
-        # Generate credential string
-        _logger.debug('Creating CredParser object')
-        creds = CredParser(username=username, password=password)
-
-        print()
-        print("Generated Credential String:")
-        print("-" * 40)
-        print(creds.credentials)
-        print()
-
-        # Verification
-        print("Verification:")
-        print(f"Username: {creds.username}")
-        print(f"Password: {'*' * len(creds.password)}")
-
-        _logger.debug('make_credentials completed successfully')
-        return creds
-
-    except KeyboardInterrupt:
-        print("\nOperation cancelled.")
-        sys.exit(1)
-    except Exception as e:
-        _logger.debug(f'make_credentials failed: {e}')
-        print(f"Error: {e}")
-        sys.exit(1)
 
 
 def _write_config_file(
@@ -473,3 +420,7 @@ def configure_credparser_cli() -> None:
     except SystemExit as e:
         # argparse calls sys.exit on error, propagate it
         raise
+
+
+if __name__ == '__main__':
+    configure_credparser_cli()

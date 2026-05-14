@@ -36,8 +36,8 @@ dev = [
 ]
 
 [project.scripts]
-credparser-make = "credparser.guide:make_credentials"
-credparser-config = "credparser.guide:configure_credparser_cli"
+credparser-make = "credparser.make_cred:make_credentials_cli"
+credparser-config = "credparser.configure:configure_credparser_cli"
 
 [tool.setuptools.packages.find]
 where = ["."]
