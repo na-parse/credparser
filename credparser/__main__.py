@@ -20,18 +20,24 @@ This differs from console_scripts entry points defined in pyproject.toml:
 
 Relationship to pyproject.toml:
     [project.scripts]
-    credparser-make = "credparser.guide:make_credentials"
-    credparser-config = "credparser.guide:configure_credparser_cli"
+    credparser-make = "credparser.make_cred:make_credentials_cli"
+    credparser-config = "credparser.configure:configure_credparser_cli"
+
+The CLI modules can also be invoked directly:
+    python -m credparser.make_cred [OPTIONS]
+    python -m credparser.configure [OPTIONS]
 
 These entry points are separate from __main__.py. Both approaches serve
 different use cases:
 - Entry points: Direct CLI commands (credparser-make, credparser-config)
+- Module execution: python -m credparser.make_cred, python -m credparser.configure
 - __main__.py: Module execution with menu (python -m credparser)
 '''
 import sys
 import logging
 
-from .guide import make_credentials, configure_credparser_cli
+from .make_cred import make_credentials
+from .configure import configure_credparser_cli
 
 _logger = logging.getLogger(__name__)
 

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "credparser"
-version = "1.2.0"
+version = "1.2.1"
 description = "Light-weight credential embedding solution for scripting environments"
 readme = "README.md"
 license = {text = "MIT"}
@@ -36,8 +36,8 @@ dev = [
 ]
 
 [project.scripts]
-credparser-make = "credparser.guide:make_credentials"
-credparser-config = "credparser.guide:configure_credparser_cli"
+credparser-make = "credparser.make_cred:make_credentials_cli"
+credparser-config = "credparser.configure:configure_credparser_cli"
 
 [tool.setuptools.packages.find]
 where = ["."]

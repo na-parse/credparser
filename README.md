@@ -80,6 +80,24 @@ credparser-make
 # Outputs encoded credential string
 ```
 
+**Options:**
+
+```bash
+credparser-make [--target NAME] [--signer NAME]
+```
+
+- `--target NAME` — Descriptive label printed at the prompt to identify what
+  the credentials are for (e.g. `--target "Production API"`)
+- `--signer NAME` — Custom signer for cross-user/cross-platform credential
+  sharing. Overrides the default OS username. Must match the signer used when
+  decoding. See [Custom Signer](#custom-signer) under Advanced Features.
+
+The module can also be invoked directly:
+
+```bash
+python -m credparser.make_cred [--target NAME] [--signer NAME]
+```
+
 ### Programmatic - Create Credentials in Code
 
 ```python
@@ -203,10 +221,16 @@ credparser-config --test
 credparser-config --help
 ```
 
+The module can also be invoked directly:
+
+```bash
+python -m credparser.configure [OPTIONS]
+```
+
 **Programmatic Configuration:**
 
 ```python
-from credparser.guide import configure_credparser
+from credparser.configure import configure_credparser
 
 # Interactive mode (prompts user for values)
 configure_credparser()
